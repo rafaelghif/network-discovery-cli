@@ -9,7 +9,7 @@ Network Discovery CLI is a robust and efficient command-line tool for network en
 
 This project is built upon a **Hexagonal (Ports and Adapters) Architecture**. This design pattern isolates the core application logic from external concerns, resulting in a system that is highly maintainable, testable, and extensible.
 
-```
+``` markup
 +------------------+      +----------------------+      +------------------+
 |   Input          |      |                      |      |   Output         |
 |   Adapters       |      |  Application &       |      |   Adapters       |
