@@ -26,7 +26,6 @@ async function main() {
     : await getInteractiveOptions();
 
   const spinner = ora('Initializing...').start();
-  let discoveredNeighbors = 0;
   let successCount = 0;
   let errorCount = 0;
   

@@ -146,9 +146,9 @@ export class TelnetAdapter implements ITransport {
     }
 
     private async disablePagination(): Promise<void> {
-        try { await this.tryCommand('terminal pager disable'); this.paginationDisabled = true; return; } catch (e) { }
-        try { await this.tryCommand('terminal length 0'); this.paginationDisabled = true; return; } catch (e) { }
-        try { await this.tryCommand('terminal datadump'); this.paginationDisabled = true; return; } catch (e) { }
+        try { await this.tryCommand('terminal pager disable'); this.paginationDisabled = true; return; } catch (e) { /* ignore error */ }
+        try { await this.tryCommand('terminal length 0'); this.paginationDisabled = true; return; } catch (e) { /* ignore error */ }
+        try { await this.tryCommand('terminal datadump'); this.paginationDisabled = true; return; } catch (e) { /* ignore error */ }
         this.paginationDisabled = true;
     }
 
