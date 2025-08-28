@@ -3,20 +3,47 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-Network Discovery CLI is a robust and efficient command-line tool designed for network administrators and engineers to discover and document network device connectivity. It interrogates Cisco switches to retrieve detailed information about network neighbors and individual port configurations.
+Network Discovery CLI is a robust and efficient command-line tool for network engineers and administrators. It automates the process of discovering and documenting network device configurations by interrogating Cisco devices to retrieve detailed port, neighbor, and system information.
+
+## Architecture
+
+This project is built upon a **Hexagonal (Ports and Adapters) Architecture**. This design pattern isolates the core application logic from external concerns, resulting in a system that is highly maintainable, testable, and extensible.
+
+```
++------------------+      +----------------------+      +------------------+
+|   Input          |      |                      |      |   Output         |
+|   Adapters       |      |  Application &       |      |   Adapters       |
+|  (e.g. CLI)      |----->|  Domain Core         |<-----|  (e.g. SSH,     |
+|                  |      |                      |      |   JSON Writer)   |
++------------------+      +----------------------+      +------------------+
+```
+
+- **Core**: The `application` and `domain` logic are independent of any specific transport or storage technology.
+- **Adapters**: The `adapters` directory contains implementations for interacting with the outside world, such as the command-line interface, SSH/Telnet transports, and file writers.
+
+This separation of concerns means new features (like a web UI or support for a new device vendor) can be added by simply creating new adapters without modifying the core business logic.
 
 ## Key Features
 
-- **Multi-Protocol Support**: Seamlessly connects to devices via SSH, Telnet, or direct serial connection.
-- **Neighbor Discovery**: Leverages both CDP (Cisco Discovery Protocol) and LLDP (Link Layer Discovery Protocol) to identify connected network devices and their specific ports.
-- **Detailed Port Analysis**: Gathers critical port-level details including description, operational status, switchport mode (Access/Trunk), VLAN assignments, and Power over Ethernet (PoE) status.
-- **MAC Address Auditing**: Scans the MAC address table for each port and enriches this data with vendor information using both offline and online lookups.
-- **Flexible Execution Modes**: Operates interactively with user-friendly prompts or non-interactively for integration into automated scripts and workflows.
-- **Versatile Output Options**: Exports all discovered data to both human-readable Excel (`.xlsx`) and machine-readable JSON formats.
-- **In-depth Debugging**: Provides a debug mode that captures and saves raw command output for effective troubleshooting.
-- **Legacy Device Compatibility**: Includes support for legacy SSH encryption algorithms to ensure connectivity with older network hardware.
+- **Extensible by Design**: The Hexagonal Architecture allows for easy extension. Add new transport methods, output formats, or parsers with minimal changes to the core logic.
+- **Robust and Resilient**: The tool gracefully handles errors and utilizes fallback commands (`show run` vs. `show running-config`) to adapt to different device platforms (IOS, SMB).
+- **Multi-Protocol Connectivity**: Seamlessly connects to devices via SSH, Telnet, or a direct serial connection.
+- **In-Depth Data Collection**: Gathers a comprehensive set of data, including detailed neighbor information (CDP/LLDP), port status, switchport mode, VLANs, and PoE status.
+- **MAC Address Auditing**: Scans and resolves MAC addresses on each port, enriching the data with vendor details via both offline and online lookups.
+- **Flexible Execution**: Supports both a fully interactive mode with guided prompts and a non-interactive mode for automation and scripting.
 
-**Note**: Telnet support is currently in a maintenance phase and may exhibit unexpected behavior.
+## Data Collection Commands
+
+To ensure transparency, the tool exclusively uses non-destructive `show` commands to gather information. The primary commands include:
+
+- `show version`
+- `show running-config` / `show run`
+- `show interfaces status` / `show interface description`
+- `show cdp neighbors detail`
+- `show lldp neighbors detail`
+- `show interface <name> switchport`
+- `show mac address-table interface <name>`
+- `show power inline <name>`
 
 ## Prerequisites
 
@@ -25,24 +52,39 @@ Network Discovery CLI is a robust and efficient command-line tool designed for n
 
 ## Installation
 
-1. **Clone the repository:**
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/rafaelghif/network-discovery-cli.git
+    cd network-discovery-cli
+    ```
 
-   ```bash
-   git clone https://github.com/rafaelghif/network-discovery-cli.git
-   cd network-discovery-cli
-   ```
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-2. **Install dependencies:**
+3.  **Build the project:**
+    ```bash
+    npm run build
+    ```
 
-   ```bash
-   npm install
-   ```
+## Configuration
 
-3. **Build the project:**
+The tool can be configured via interactive prompts or, for automation, through environment variables.
 
-   ```bash
-   npm run build
-   ```
+### All Configuration Options
+
+| Option              | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| `mode`              | Connection method: `SSH`, `Telnet`, or `Serial`.                            |
+| `targets`           | Comma-separated IP addresses or hostnames (for `SSH`/`Telnet`).             |
+| `comPort`           | The serial port to use (e.g., `COM3`) (for `Serial` mode).                  |
+| `baudRate`          | The baud rate for the serial connection (defaults to `9600`).               |
+| `credentials`       | An object containing `username`, `password`, and `enableSecret`.            |
+| `timeout`           | Connection timeout in milliseconds (defaults to `20000`).                   |
+| `legacySsh`         | Set to `true` to enable older SSH algorithms for legacy devices.            |
+| `resolveMacVendors` | `Offline` (fast), `Online` (requires internet), or `Disabled`.              |
+| `debug`             | Set to `true` to save raw command output for troubleshooting.               |
 
 ## Usage
 
@@ -56,10 +98,9 @@ npm start
 
 ### Non-interactive (Automated) Mode
 
-For use in scripts or automated environments, configure the tool with environment variables.
+For use in scripts or automated environments, set the `NDC_NON_INTERACTIVE=1` environment variable and provide the configuration in `NDC_CONFIG_JSON`.
 
 **PowerShell:**
-
 ```powershell
 $env:NDC_NON_INTERACTIVE="1"
 $env:NDC_CONFIG_JSON='''{"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}'''
@@ -67,7 +108,6 @@ npm start
 ```
 
 **CMD:**
-
 ```cmd
 set NDC_NON_INTERACTIVE=1
 set NDC_CONFIG_JSON={"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}
@@ -75,20 +115,11 @@ npm start
 ```
 
 **Bash:**
-
 ```bash
 export NDC_NON_INTERACTIVE=1
 export NDC_CONFIG_JSON='''{"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}'''
 npm start
 ```
-
-#### Configuration Variables
-
-- `NDC_NON_INTERACTIVE`: Set to `1` to enable non-interactive mode.
-- `NDC_CONFIG_JSON`: A JSON string containing the configuration object.
-  - `mode`: Connection mode (`SSH`, `Telnet`, or `Serial`).
-  - `targets`: A comma-separated string of target IP addresses or hostnames.
-  - `credentials`: An object with `username` and `password`.
 
 ## Output
 
@@ -96,7 +127,7 @@ The tool generates output files in a directory named after the target device's h
 
 - `ports.json`: A JSON file with detailed neighbor and interface information.
 - `ports.xlsx`: An Excel spreadsheet of the same data for analysis.
-- `debug/`: (Optional) If debug mode is enabled, this directory contains raw command output.
+- `debug/`: (If `debug: true`) Contains raw command output.
 
 ## Project Structure
 
@@ -124,11 +155,11 @@ Future enhancements being considered for this project include:
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.
 
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+1.  Fork the repository.
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
 ## License
 
