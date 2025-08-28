@@ -1,0 +1,45 @@
+{
+  "name": "network-discovery-cli",
+  "version": "1.0.0",
+  "description": "A CLI tool to discover Cisco switch neighbors and per-port details using CDP and LLDP.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "dev": "ts-node-esm src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [
+    "cisco",
+    "network",
+    "cli",
+    "cdp",
+    "lldp",
+    "typescript"
+  ],
+  "author": "AI Senior Engineer",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.20",
+    "ora": "^8.0.1",
+    "serialport": "^12.0.0",
+    "ssh2": "^1.15.0",
+    "telnet-client": "^2.2.6",
+    "winston": "^3.13.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.12.12",
+    "@types/ssh2": "^1.15.0",
+    "@typescript-eslint/eslint-plugin": "^7.9.0",
+    "@typescript-eslint/parser": "^7.9.0",
+    "eslint": "^8.57.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
