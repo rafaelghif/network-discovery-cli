@@ -8,6 +8,7 @@ export class SshAdapter implements ITransport {
   private stream?: any;
   private promptRegex = /(>|#)\s*$/;
   private isEnabled = false;
+  private paginationDisabled = false;
 
   constructor(private options: CliOptions['credentials'] & { host: string; legacySsh: boolean, timeout: number }) {
     this.client = new Client();
@@ -25,10 +26,16 @@ export class SshAdapter implements ITransport {
 
       if (this.options.legacySsh) {
         sshConfig.algorithms = {
-          kex: ['diffie-hellman-group1-sha1'],
+          kex: ['diffie-hellman-group-exchange-sha256',
+            'diffie-hellman-group14-sha1',
+            'diffie-hellman-group1-sha1',],
           serverHostKey: ['ssh-rsa'],
-          cipher: ['aes128-cbc'],
-          hmac: ['hmac-sha1'],
+          cipher: [
+            'aes128-ctr', 'aes192-ctr', 'aes256-ctr',
+            'aes128-gcm@openssh.com', 'aes256-gcm@openssh.com',
+            'aes128-cbc', '3des-cbc',
+          ],
+          hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1'],
         };
       }
 
@@ -93,52 +100,80 @@ export class SshAdapter implements ITransport {
     throw new Error('Failed to enter enable mode. Unexpected response from device.');
   }
 
-  // THIS METHOD SIGNATURE IS NOW CORRECTED
-  executeCommand(command: string, endPromptRegex?: RegExp): Promise<CommandResult> {
-    return new Promise(async (resolve, reject) => {
+  async executeCommand(command: string, endPromptRegex?: RegExp): Promise<CommandResult> {
+    if (!this.paginationDisabled) {
+      await this.disablePagination();
+    }
+
+    return new Promise((resolve, reject) => {
       if (!this.stream) return reject(new Error('Not connected'));
 
-      if (!this.paginationDisabled) {
-        await this.disablePagination();
-      }
-
       const finalPromptRegex = endPromptRegex || this.promptRegex;
+      const morePromptRegex = /More:.*<space>/;
       let rawOutput = '';
+      let silenceTimer: NodeJS.Timeout;
+
+      // This is the main timeout for the entire command
+      const commandTimeout = setTimeout(() => {
+        this.stream.removeListener('data', listener);
+        reject(new Error(`Command "${command}" timed out after ${this.options.timeout}ms`));
+      }, this.options.timeout);
 
       const listener = (data: Buffer) => {
         rawOutput += data.toString();
-        const promptMatch = rawOutput.match(finalPromptRegex);
-        if (promptMatch) {
-          this.stream.removeListener('data', listener);
 
-          const prompt = promptMatch[0].trim();
-          const cleanedOutput = rawOutput
-            .replace(new RegExp(`^${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\r?\\n`), '')
-            .replace(finalPromptRegex, '')
-            .trim();
+        // Reset the silence timer every time we get new data
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          // If 400ms passes with no new data, check the buffer
 
-          resolve({ output: cleanedOutput, prompt });
-        }
+          const hasFinalPrompt = finalPromptRegex.test(rawOutput);
+          const hasMorePrompt = morePromptRegex.test(rawOutput);
+
+          if (hasFinalPrompt) {
+            // We're done!
+            clearTimeout(commandTimeout);
+            this.stream.removeListener('data', listener);
+
+            const promptMatch = rawOutput.match(finalPromptRegex);
+            const prompt = promptMatch ? promptMatch[0].trim() : '';
+
+            // Clean all "More" prompts and the final prompt from the output
+            const cleanedOutput = rawOutput
+              .replace(new RegExp(morePromptRegex, 'g'), '')
+              .replace(finalPromptRegex, '')
+              .trim();
+
+            resolve({ output: cleanedOutput, prompt });
+
+          } else if (hasMorePrompt) {
+            // Not done, get the next page.
+            this.stream.write(' '); // Send a space to get the next page
+          }
+        }, 400); // 400ms silence threshold is a good balance
       };
 
       this.stream.on('data', listener);
-      this.stream.write(`${command}\n`);
+      this.stream.write(`${command}\n`, (err: any) => {
+        if (err) {
+          clearTimeout(commandTimeout);
+          clearTimeout(silenceTimer);
+          this.stream.removeListener('data', listener);
+          reject(err);
+        }
+      });
     });
   }
 
-  private paginationDisabled = false;
   private async disablePagination(): Promise<void> {
-    try {
-      await this.tryCommand('terminal length 0');
-      this.paginationDisabled = true;
-    } catch (e) {
-      try {
-        await this.tryCommand('terminal datadump');
-        this.paginationDisabled = true;
-      } catch (e2) {
-        // All fallbacks failed
-      }
-    }
+    // Try the modern Cisco Business Series command first
+    try { await this.tryCommand('terminal pager disable'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+    // Standard IOS/NX-OS command
+    try { await this.tryCommand('terminal length 0'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+    // Legacy SF/SG series command
+    try { await this.tryCommand('terminal datadump'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+
+    this.paginationDisabled = true; // Mark as "attempted" to prevent re-running
   }
 
   private tryCommand(command: string): Promise<string> {

@@ -62,7 +62,7 @@ export class DiscoveryService {
 
     switch (this.options.mode) {
       case 'Telnet':
-        transport = new TelnetAdapter({ ...this.options.credentials, host: target, timeout: this.options.timeout });
+        transport = new TelnetAdapter({ ...this.options.credentials, host: target, timeout: this.options.timeout, debug: this.options.debug });
         break;
       case 'Serial':
         transport = new SerialAdapter({ ...this.options.credentials, comPort: target, timeout: this.options.timeout, baudRate: this.options.baudRate, debug: this.options.debug });
@@ -75,66 +75,75 @@ export class DiscoveryService {
 
     const commandOutputs: CommandOutput[] = [];
 
-    const execute = async (command: string): Promise<CommandResult> => {
+    const execute = async (command: string, endPromptRegex?: RegExp): Promise<CommandResult> => {
       try {
-        const result = await transport.executeCommand(command);
-        commandOutputs.push({ command, output: result.output });
+        const result = await transport.executeCommand(command, endPromptRegex);
         return result;
       } catch (e: any) {
-        commandOutputs.push({ command, output: `ERROR: ${e.message}` });
         logger.warn(`Command '${command}' failed on ${target}: ${e.message}`);
         return { output: '', prompt: '' };
       }
     };
 
+    const executeWithFallbacks = async (commands: string[]): Promise<CommandResult> => {
+      for (const cmd of commands) {
+        const result = await execute(cmd);
+        if (result.output && !result.output.toLowerCase().includes('invalid input')) {
+          commandOutputs.push({ command: cmd, output: result.output });
+          return result;
+        }
+        commandOutputs.push({ command: cmd, output: `FAILED: ${result.output}` });
+      }
+      return { output: '', prompt: '' };
+    };
+
     try {
       await transport.connect();
+
       if (this.options.credentials.enableSecret) {
         await transport.enable(this.options.credentials.enableSecret);
       }
 
       let hostname = 'UnknownHostname';
-      let lastPrompt = '';
 
-      const showRunResult = await execute('show run | i ^hostname');
+      const showVerResult = await executeWithFallbacks(['show version']);
+      const platform = IdentityParser.parsePlatform(showVerResult.output);
+
+      const showRunResult = await executeWithFallbacks(['show running-config', 'show system', 'show run']);
       hostname = IdentityParser.parseHostname(showRunResult.output);
-      lastPrompt = showRunResult.prompt;
 
-      if (hostname === 'UnknownHostname' && lastPrompt) {
-        hostname = IdentityParser.parseHostnameFromPrompt(lastPrompt);
+      if (hostname === 'UnknownHostname' && showRunResult.prompt) {
+        hostname = IdentityParser.parseHostnameFromPrompt(showRunResult.prompt);
       }
-
-      const showVerResult = await execute('show version');
       if (hostname === 'UnknownHostname') {
         hostname = IdentityParser.parseHostnameFromShowVersion(showVerResult.output);
       }
 
-      const platform = IdentityParser.parsePlatform(showVerResult.output);
       const device = new Device(hostname, platform);
 
-      const intStatusResult = await execute(this.getCommand('show interfaces status', platform));
-      const initialPorts = InterfaceStatusParser.parse(intStatusResult.output); // FIXED
+      const intStatusResult = await executeWithFallbacks(['show interfaces status', 'show interface description']);
+      const initialPorts = InterfaceStatusParser.parse(intStatusResult.output);
       initialPorts.forEach(p => device.addOrUpdateInterface(p));
 
       const cdpResult = await execute('show cdp neighbors detail');
-      device.addCdpNeighbors(CdpParser.parse(cdpResult.output)); // FIXED
+      device.addCdpNeighbors(CdpParser.parse(cdpResult.output));
 
       const lldpResult = await execute('show lldp neighbors detail');
-      device.addLldpNeighbors(LldpParser.parse(lldpResult.output)); // FIXED
+      device.addLldpNeighbors(LldpParser.parse(lldpResult.output));
 
       for (const iface of device.interfaces.values()) {
         eventBus.publish('ui:updateStatus', {
           text: `Fetching details for ${iface.portName} on ${hostname}`
         });
 
-        const switchportResult = await execute(`show interface ${iface.portName} switchport`);
-        device.addOrUpdateInterface({ portName: iface.portName, ...InterfaceDetailParser.parseSwitchport(switchportResult.output) }); // FIXED
+        const switchportResult = await executeWithFallbacks([`show interface ${iface.portName} switchport`, `show interfaces switchport ${iface.portName}`]);
+        device.addOrUpdateInterface({ portName: iface.portName, ...InterfaceDetailParser.parseSwitchport(switchportResult.output) });
 
         const macTableResult = await execute(`show mac address-table interface ${iface.portName}`);
-        iface.macAddresses = MacTableParser.parse(macTableResult.output); // FIXED
+        iface.macAddresses = MacTableParser.parse(macTableResult.output);
 
         const poeResult = await execute(`show power inline ${iface.portName}`);
-        device.addOrUpdateInterface({ portName: iface.portName, ...InterfaceDetailParser.parsePoe(poeResult.output) }); // FIXED
+        device.addOrUpdateInterface({ portName: iface.portName, ...InterfaceDetailParser.parsePoe(poeResult.output) });
       }
 
       device.processAndMergeNeighbors();
@@ -158,13 +167,15 @@ export class DiscoveryService {
 
   private async writeData(device: Device): Promise<void> {
     const safeHostname = sanitizeFilename(device.hostname);
-    const outputDir = path.join('output', safeHostname);
+    const outputDir = path.join('output', safeHostname); // This path is correct
     const flatData = device.toFlatObject();
 
+    // CORRECTED: Use the 'outputDir' variable to build the full file path
     await this.jsonWriter.write(flatData, path.join(outputDir, 'ports.json'));
     await this.excelWriter.write(flatData, path.join(outputDir, 'ports.xlsx'));
 
     if (this.options.debug) {
+      // CORRECTED: Use the 'outputDir' variable here as well
       const rawDir = path.join(outputDir, 'raw');
       const rawData = this.rawOutputs.get(device.hostname);
       if (rawData) {

@@ -122,34 +122,52 @@ export class SerialAdapter implements ITransport {
     }
 
     return new Promise((resolve, reject) => {
-      this.buffer = ''; // Clear buffer
-      const finalPromptRegex = endPromptRegex || this.promptRegex; // Use custom or default prompt
+      if (!this.port) return reject(new Error('Not connected'));
 
-      const timeout = setTimeout(() => {
-        this.port.removeAllListeners('data');
+      const finalPromptRegex = endPromptRegex || this.promptRegex;
+      const morePromptRegex = /More:.*<space>/;
+      this.buffer = ''; // Clear buffer for this command
+      let silenceTimer: NodeJS.Timeout;
+
+      const commandTimeout = setTimeout(() => {
+        this.port.removeListener('data', listener);
         reject(new Error(`Command "${command}" timed out after ${this.options.timeout}ms`));
       }, this.options.timeout);
 
-      const dataListener = (data: Buffer) => {
-        const text = data.toString();
-        this.buffer += text;
-        const promptMatch = this.buffer.match(finalPromptRegex);
-        if (promptMatch) {
-          clearTimeout(timeout);
-          this.port.removeListener('data', dataListener);
+      const listener = (data: Buffer) => {
+        this.buffer += data.toString();
 
-          const prompt = promptMatch[0].trim();
-          const cleanedOutput = this.buffer.replace(finalPromptRegex, '').trim();
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          const hasFinalPrompt = finalPromptRegex.test(this.buffer);
+          const hasMorePrompt = morePromptRegex.test(this.buffer);
 
-          resolve({ output: cleanedOutput, prompt });
-        }
+          if (hasFinalPrompt) {
+            clearTimeout(commandTimeout);
+            this.port.removeListener('data', listener);
+
+            const promptMatch = this.buffer.match(finalPromptRegex);
+            const prompt = promptMatch ? promptMatch[0].trim() : '';
+
+            const cleanedOutput = this.buffer
+              .replace(new RegExp(morePromptRegex, 'g'), '')
+              .replace(finalPromptRegex, '')
+              .trim();
+
+            resolve({ output: cleanedOutput, prompt });
+
+          } else if (hasMorePrompt) {
+            this.port.write(' '); // Send a space
+          }
+        }, 400);
       };
 
-      this.port.on('data', dataListener);
+      this.port.on('data', listener);
       this.port.write(`${command}\n`, (err) => {
         if (err) {
-          clearTimeout(timeout);
-          this.port.removeListener('data', dataListener);
+          clearTimeout(commandTimeout);
+          clearTimeout(silenceTimer);
+          this.port.removeListener('data', listener);
           reject(err);
         }
       });
@@ -157,13 +175,14 @@ export class SerialAdapter implements ITransport {
   }
 
   private async disablePagination(): Promise<void> {
-    try {
-      await this.tryCommand('terminal length 0');
-      this.paginationDisabled = true;
-    } catch (e) {
-      // If the primary command fails, we just continue and hope for the best.
-      this.paginationDisabled = true; // Mark as "attempted" to prevent re-running
-    }
+    // Try the modern Cisco Business Series command first
+    try { await this.tryCommand('terminal pager disable'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+    // Standard IOS/NX-OS command
+    try { await this.tryCommand('terminal length 0'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+    // Legacy SF/SG series command
+    try { await this.tryCommand('terminal datadump'); this.paginationDisabled = true; return; } catch (e) { /* silent fail */ }
+
+    this.paginationDisabled = true; // Mark as "attempted" to prevent re-running
   }
 
   private tryCommand(command: string): Promise<string> {
