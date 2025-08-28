@@ -4,8 +4,9 @@ A CLI tool to discover Cisco switch neighbors and per-port details using CDP and
 
 ## Features
 
-* **Multiple Connection Modes**: Supports SSH, Telnet, and direct serial connections.
+* **Multiple Connection Modes**: Supports SSH, Telnet (Note: Telnet support is currently in a maintenance phase and may have bugs), and direct serial connections.
 * **Neighbor Discovery**: Gathers detailed information about connected Cisco devices using CDP and LLDP protocols.
+* **MAC Vendor Lookup**: Identifies the vendor of a device's MAC address. It uses a fast offline lookup against the IEEE OUI database and can be configured to use an online API (`macvendors.com`) for more extensive checks.
 * **Interactive & Non-interactive Modes**: Can be run with interactive prompts or configured via environment variables for automated execution.
 * **Flexible Output**: Saves discovered data in both JSON and Excel formats.
 * **Debug Mode**: Provides an option to save raw command output for troubleshooting.
