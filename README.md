@@ -52,18 +52,21 @@ To ensure transparency, the tool exclusively uses non-destructive `show` command
 
 ## Installation
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
+
     ```bash
     git clone https://github.com/rafaelghif/network-discovery-cli.git
     cd network-discovery-cli
     ```
 
-2.  **Install dependencies:**
+2. **Install dependencies:**
+
     ```bash
     npm install
     ```
 
-3.  **Build the project:**
+3. **Build the project:**
+
     ```bash
     npm run build
     ```
@@ -101,6 +104,7 @@ npm start
 For use in scripts or automated environments, set the `NDC_NON_INTERACTIVE=1` environment variable and provide the configuration in `NDC_CONFIG_JSON`.
 
 **PowerShell:**
+
 ```powershell
 $env:NDC_NON_INTERACTIVE="1"
 $env:NDC_CONFIG_JSON='''{"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}'''
@@ -108,6 +112,7 @@ npm start
 ```
 
 **CMD:**
+
 ```cmd
 set NDC_NON_INTERACTIVE=1
 set NDC_CONFIG_JSON={"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}
@@ -115,6 +120,7 @@ npm start
 ```
 
 **Bash:**
+
 ```bash
 export NDC_NON_INTERACTIVE=1
 export NDC_CONFIG_JSON='''{"mode": "SSH", "targets": "192.168.1.1,192.168.1.2", "credentials": {"username": "user", "password": "password"}}'''
@@ -155,11 +161,11 @@ Future enhancements being considered for this project include:
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.
 
-1.  Fork the repository.
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
 ## License
 
