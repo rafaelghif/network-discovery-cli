@@ -79,6 +79,13 @@ export async function getInteractiveOptions(): Promise<CliOptions> {
       message: 'Enable debug mode (save raw command output)?',
       default: false,
     },
+    {
+      type: 'list', 
+      name: 'resolveMacVendors',
+      message: 'Resolve MAC address vendors?',
+      choices: ['Offline (fast, recommended)', 'Online (requires internet)', 'Disabled'],
+      filter: (value) => value.split(' ')[0], // Extracts 'Offline', 'Online', or 'Disabled'
+    },
   ]);
 
   // Consolidate credentials into a nested object to match the schema
@@ -90,6 +97,7 @@ export async function getInteractiveOptions(): Promise<CliOptions> {
     timeout: baseQuestions.timeout,
     legacySsh: baseQuestions.legacySsh ?? false,
     debug: baseQuestions.debug,
+    resolveMacVendors: baseQuestions.resolveMacVendors,
     credentials: {
       username: baseQuestions.username,
       password: baseQuestions.password,

@@ -6,7 +6,7 @@ import { DevicePlatform } from '../shared/types.js';
 export class Device {
   public interfaces = new Map<string, Interface>();
 
-  constructor(public hostname: string, public platform: DevicePlatform) {}
+  constructor(public hostname: string, public platform: DevicePlatform) { }
 
   addOrUpdateInterface(portData: Partial<Interface>): void {
     if (!portData.portName) return;
@@ -31,9 +31,9 @@ export class Device {
       const iface = this.interfaces.get(neighbor.localPort);
       if (iface) {
         if (protocol === 'CDP') {
-            iface.cdpNeighbor = neighbor;
+          iface.cdpNeighbor = neighbor;
         } else {
-            iface.lldpNeighbor = neighbor;
+          iface.lldpNeighbor = neighbor;
         }
       }
     }
@@ -59,7 +59,9 @@ export class Device {
         trunk_vlans: iface.trunkVlans,
         poe_status: iface.poeStatus,
         mac_count: iface.macAddresses.length,
-        mac_lists: iface.macAddresses.join(', '),
+        mac_lists: iface.macAddressDetails.length > 0
+          ? iface.macAddressDetails.map(m => `${m.mac} (${m.vendor})`).join(', ')
+          : iface.macAddresses.join(', '),
         neighbor_device: iface.mergedNeighbor?.deviceId,
         neighbor_port: iface.mergedNeighbor?.portId,
         neighbor_platform: iface.mergedNeighbor?.platform,

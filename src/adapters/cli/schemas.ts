@@ -14,6 +14,7 @@ export const cliOptionsSchema = z.object({
   credentials: credentialsSchema,
   timeout: z.number().int().positive(),
   legacySsh: z.boolean(),
+  resolveMacVendors: z.enum(['Disabled', 'Online', 'Offline']),
   debug: z.boolean(),
 }).refine(data => data.mode === 'Serial' ? !!data.comPort : !!data.targets, {
   message: "Targets must be provided for SSH/Telnet, and a COM Port for Serial.",

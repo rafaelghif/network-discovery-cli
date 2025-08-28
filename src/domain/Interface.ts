@@ -9,10 +9,10 @@ export class Interface {
   trunkVlans: string = 'N/A';
   poeStatus: PoeStatus = 'N/A';
   macAddresses: string[] = [];
-
+  macAddressDetails: { mac: string; vendor: string }[] = [];
   cdpNeighbor?: Neighbor;
   lldpNeighbor?: Neighbor;
   mergedNeighbor?: Neighbor & { sourceProtocol: 'CDP' | 'LLDP' | 'Both' };
 
-  constructor(public portName: string) {}
+  constructor(public portName: string) { }
 }

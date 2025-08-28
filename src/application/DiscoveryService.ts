@@ -16,6 +16,8 @@ import { CdpParser } from '../adapters/parsers/CdpParser.js';
 import { LldpParser } from '../adapters/parsers/LldpParser.js';
 import { InterfaceDetailParser } from '../adapters/parsers/InterfaceDetailParser.js';
 import { MacTableParser } from '../adapters/parsers/MacTableParser.js';
+import { IMacVendorResolver, MacVendorAdapter } from '../adapters/lookup/MacVendorAdapter.js';
+import { OfflineMacVendorAdapter } from '../adapters/lookup/OfflineMacVendorAdapter.js';
 
 export class DiscoveryService {
   private rawOutputs = new Map<string, CommandOutput[]>();
@@ -30,6 +32,10 @@ export class DiscoveryService {
     const targets = this.options.mode === 'Serial'
       ? [this.options.comPort!]
       : this.options.targets!.split(',').map(t => t.trim());
+
+    if (this.options.resolveMacVendors === 'Offline') {
+      await OfflineMacVendorAdapter.initialize();
+    }
 
     eventBus.publish('discovery:start', { total: targets.length });
 
@@ -58,6 +64,16 @@ export class DiscoveryService {
   }
 
   private async discoverDevice(target: string): Promise<Device> {
+    let macVendorResolver: IMacVendorResolver | null = null;
+    switch (this.options.resolveMacVendors) {
+      case 'Online':
+        macVendorResolver = new MacVendorAdapter();
+        break;
+      case 'Offline':
+        macVendorResolver = new OfflineMacVendorAdapter();
+        break;
+    }
+
     let transport: ITransport;
 
     switch (this.options.mode) {
@@ -141,6 +157,18 @@ export class DiscoveryService {
 
         const macTableResult = await execute(`show mac address-table interface ${iface.portName}`);
         iface.macAddresses = MacTableParser.parse(macTableResult.output);
+
+        if (macVendorResolver && iface.macAddresses.length > 0) {
+          eventBus.publish('ui:updateStatus', {
+            text: `Resolving ${iface.macAddresses.length} MAC vendors for ${iface.portName}...`
+          });
+          iface.macAddressDetails = await Promise.all(
+            iface.macAddresses.map(async (mac) => {
+              const vendor = await macVendorResolver.resolve(mac);
+              return { mac, vendor };
+            })
+          );
+        }
 
         const poeResult = await execute(`show power inline ${iface.portName}`);
         device.addOrUpdateInterface({ portName: iface.portName, ...InterfaceDetailParser.parsePoe(poeResult.output) });
