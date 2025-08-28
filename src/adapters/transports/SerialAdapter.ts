@@ -10,14 +10,14 @@ export class SerialAdapter implements ITransport {
   private promptRegex = /(>|#)\s*$/;
   private buffer = '';
   private options: CliOptions['credentials'] & { comPort: string; timeout: number; baudRate?: number; debug: boolean };
-  private paginationDisabled = false; // ADDED: To track if we've disabled the pager
+  private paginationDisabled = false;
 
   constructor(options: CliOptions['credentials'] & { comPort: string; timeout: number; baudRate?: number; debug: boolean }) {
     this.options = options;
     this.port = new SerialPort({
       path: this.options.comPort,
       baudRate: this.options.baudRate || 9600,
-      rtscts: true, // ADDED: Enable hardware flow control
+      rtscts: true, 
       autoOpen: false,
     });
   }
@@ -186,7 +186,6 @@ export class SerialAdapter implements ITransport {
   }
 
   private tryCommand(command: string): Promise<string> {
-    // This is a simplified version of executeCommand for internal use
     return new Promise((resolve, reject) => {
       let tempBuffer = '';
       const timeout = setTimeout(() => {

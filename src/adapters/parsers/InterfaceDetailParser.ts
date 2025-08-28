@@ -2,7 +2,6 @@ import { Interface } from '../../domain/Interface.js';
 import { PoeStatus, PortMode } from '../../shared/types.js';
 
 export class InterfaceDetailParser {
-  // Parses "show interface <int> switchport"
   static parseSwitchport(output: string): Partial<Interface> {
     const modeMatch = output.match(/Administrative Mode:\s*(.*?)$/m);
     const accessVlanMatch = output.match(/Access Mode VLAN:\s*(\d+)/m);
@@ -21,7 +20,6 @@ export class InterfaceDetailParser {
     };
   }
 
-  // Parses "show power inline interface <int>"
   static parsePoe(output: string): Partial<Interface> {
       let poeStatus: PoeStatus = 'N/A';
       if (/auto/i.test(output)) poeStatus = 'Auto';

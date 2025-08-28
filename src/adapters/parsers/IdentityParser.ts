@@ -6,14 +6,12 @@ export class IdentityParser {
     return match ? match[1].trim() : 'UnknownHostname';
   }
 
-  // NEW: Parses hostname from a prompt like "MySwitch#"
   static parseHostnameFromPrompt(prompt: string): string {
     if (!prompt) return 'UnknownHostname';
     const match = prompt.match(/^(.*)(>|#)/);
     return match ? match[1].trim() : 'UnknownHostname';
   }
 
-  // NEW: Parses hostname from "show version" output
   static parseHostnameFromShowVersion(output: string): string {
     const match = output.match(/^(.+)\s+uptime is/im);
     return match ? match[1].trim() : 'UnknownHostname';

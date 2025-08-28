@@ -7,7 +7,6 @@ import { eventBus } from '../../infrastructure/EventBus.js';
 
 export class OfflineMacVendorAdapter implements IMacVendorResolver {
   private static vendorMap: Map<string, string> | null = null;
-  // UPDATED: Point to the new oui.txt database file
   private static readonly filePath = path.join('assets', 'oui.txt');
 
   public static async initialize(): Promise<void> {
@@ -28,7 +27,6 @@ export class OfflineMacVendorAdapter implements IMacVendorResolver {
       crlfDelay: Infinity,
     });
 
-    // UPDATED: New parsing logic for the oui.txt format
     const hexLineRegex = /^([0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2})\s+\(hex\)\s+(.*)$/;
 
     for await (const line of rl) {

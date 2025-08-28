@@ -35,8 +35,6 @@ export class MacVendorAdapter implements IMacVendorResolver {
             return errorText;
 
         } catch (error: any) {
-            // THIS IS THE CORRECTED PART
-            // We will log the specific 'cause' of the fetch failure for better debugging.
             logger.error(`MAC Vendor API fetch failed for ${macAddress}. Reason: ${error.cause?.code || error.message}`);
             const errorMessage = 'Resolution Failed';
             this.cache.set(oui, errorMessage);

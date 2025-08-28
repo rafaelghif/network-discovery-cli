@@ -1,8 +1,14 @@
 {
     "cSpell.words": [
+        "datadump",
+        "diffie",
         "hostnames",
         "Junos",
         "macvendors",
+        "notconnect",
+        "portname",
+        "rtscts",
+        "switchhost",
         "switchport"
     ]
 }

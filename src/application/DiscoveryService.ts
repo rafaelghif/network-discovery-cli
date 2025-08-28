@@ -198,12 +198,10 @@ export class DiscoveryService {
     const outputDir = path.join('output', safeHostname); // This path is correct
     const flatData = device.toFlatObject();
 
-    // CORRECTED: Use the 'outputDir' variable to build the full file path
     await this.jsonWriter.write(flatData, path.join(outputDir, 'ports.json'));
     await this.excelWriter.write(flatData, path.join(outputDir, 'ports.xlsx'));
 
     if (this.options.debug) {
-      // CORRECTED: Use the 'outputDir' variable here as well
       const rawDir = path.join(outputDir, 'raw');
       const rawData = this.rawOutputs.get(device.hostname);
       if (rawData) {

@@ -69,7 +69,6 @@ export class SshAdapter implements ITransport {
     this.client.end();
   }
 
-  // in SshAdapter class
   async enable(secret: string): Promise<void> {
     if (this.isEnabled) return;
 
@@ -80,7 +79,6 @@ export class SshAdapter implements ITransport {
       return;
     }
 
-    // FIXED: Check .prompt instead of .output
     if (enableResult.prompt.includes('Password:')) {
       if (!secret) {
         throw new Error('Device prompted for a password, but no enable secret was provided.');
